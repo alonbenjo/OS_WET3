@@ -13,15 +13,17 @@ typedef struct Queue * Queue;
 
 typedef struct {
     int connfd;
-} QueueElement;
+} * QueueElement;
 
-QueueElement* createQueueElement(int connfd){
+QueueElement createQueueElement(int connfd){
     QueueElement* element = malloc(sizeof(QueueElement));
+    if(element == NULL)
+        return NULL;
     element->connfd = connfd;
     return element;
 }
 
-void destroyQueueElement(QueueElement** element){
+void destroyQueueElement(QueueElement* element){
     free(*element);
     *element = NULL;
 }
