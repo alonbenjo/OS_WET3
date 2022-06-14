@@ -31,3 +31,6 @@ output.cgi: output.c
 clean:
 	-rm -f $(OBJS) server client output.cgi
 	-rm -rf public
+
+benjo:
+	$(CC) $(CFLAGS) -o benjo benjo_test.o Queue.o
