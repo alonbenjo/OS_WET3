@@ -4,7 +4,7 @@
 
 #include "Queue.h"
 #include <stdlib.h>
-
+#include <sys/time.h>
 
 struct QueueStruct {
     int max_size;
@@ -12,6 +12,7 @@ struct QueueStruct {
     QueueElement* start_ptr;
     QueueElement* end_ptr;
     QueueElement* buff;
+    int last_conf;
 };
 
 QueueElement createQueueElement(int connfd){
@@ -19,10 +20,14 @@ QueueElement createQueueElement(int connfd){
     if(element == NULL)
         return NULL;
     element->connfd = connfd;
+    element->request_arrival = malloc(sizeof(*element->request_arrival));
+    gettimeofday(element->request_arrival, NULL);
     return element;
 }
 
 void destroyQueueElement(QueueElement* element){
+    free((*element)->request_arrival);
+    (*element)->request_arrival = NULL;
     free(*element);
     *element = NULL;
 }

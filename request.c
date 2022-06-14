@@ -29,6 +29,7 @@ void requestError(int fd, char *cause, char *errnum, char *shortmsg, char *longm
    sprintf(buf, "Content-Length: %lu\r\n\r\n", strlen(body));
    Rio_writen(fd, buf, strlen(buf));
    printf("%s", buf);
+ //  sprintf("Stat-Req_Arrival:: %lu")
 
    // Write out the content
    Rio_writen(fd, body, strlen(body));
@@ -152,9 +153,8 @@ void requestServeStatic(int fd, char *filename, int filesize)
 }
 
 // handle a request
-void requestHandle(int fd)
+void requestHandle(int fd, void* thread_entry_ptr)
 {
-
    int is_static;
    struct stat sbuf;
    char buf[MAXLINE], method[MAXLINE], uri[MAXLINE], version[MAXLINE];
@@ -185,12 +185,16 @@ void requestHandle(int fd)
          return;
       }
       requestServeStatic(fd, filename, sbuf.st_size);
+       ((ThreadEntry *) thread_entry_ptr)->static_requests_handled++;
+       ((ThreadEntry *) thread_entry_ptr)->all_requests_handled++;
    } else {
       if (!(S_ISREG(sbuf.st_mode)) || !(S_IXUSR & sbuf.st_mode)) {
          requestError(fd, filename, "403", "Forbidden", "OS-HW3 Server could not run this CGI program");
          return;
       }
       requestServeDynamic(fd, filename, cgiargs);
+       ((ThreadEntry *)thread_entry_ptr)->dynamic_requests_handled++;
+       ((ThreadEntry *)thread_entry_ptr)->all_requests_handled++;
    }
 }
 

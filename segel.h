@@ -40,7 +40,17 @@ typedef struct sockaddr SA;
 enum schedAlg {
     block_sched, dt_sched, dh_sched, random_sched
 };
+typedef struct  {
+    pthread_t thread;
+    int thread_index; // in range 0 -> Max thread-1
+    int all_requests_handled;
+    int dynamic_requests_handled;
+    int static_requests_handled;
+    struct timeval* request_arrival;
+    struct timeval* request_work_start;
+} ThreadEntry;
 
+volatile ThreadEntry* workers;
 /* Persistent state for the robust I/O (Rio) package */
 /* $begin rio_t */
 #define RIO_BUFSIZE 8192

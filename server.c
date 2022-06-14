@@ -2,17 +2,13 @@
 #include "request.h"
 #include <string.h>
 #include "Queue.h"
-
+#include <math.h>
 #include <stdbool.h>
 
 
 
 
- typedef struct _threadEntry {
-    pthread_t thread;
-    int stat_data;
-    void* request;
-} ThreadEntry;
+
 
 //
 // server.c: A very, very simple web server
@@ -64,9 +60,9 @@ void getargs(int *port,int* threads, int* queue_size,enum schedAlg* overload_alg
  pthread_mutex_t lock;
 volatile int requests_running;
 volatile Queue wait_queue;
-volatile ThreadEntry* workers;
 
-void* doRoutine(void* request)
+
+void* doRoutine(void* thread_entry_ptr)
 {
     while(true)
     {
@@ -78,10 +74,14 @@ void* doRoutine(void* request)
         QueueElement elem;
         queueRemove(wait_queue, &elem);
         requests_running++;
+
+        ((ThreadEntry *) thread_entry_ptr)->request_arrival = elem->request_arrival;
+        gettimeofday(((ThreadEntry *) thread_entry_ptr)->request_work_start,NULL);
         pthread_mutex_unlock(&lock);
 
         //work neto:
-        requestHandle(elem->connfd);
+        requestHandle(elem->connfd, thread_entry_ptr);
+        ((ThreadEntry *) thread_entry_ptr)->request_arrival = NULL;
         Close(elem->connfd);
         destroyQueueElement(&elem);
 
@@ -97,7 +97,7 @@ void overloadQueue(const enum schedAlg* const overload_alg , int max_request_siz
     switch(*overload_alg) {
         case random_sched: {
             int size = queueSize(wait_queue);
-            int need_to_remove = (int) ceil(.3 * size);
+            int need_to_remove = ceil(.3 * size);
             while (need_to_remove > 0){
                 int current_size = queueSize(wait_queue);
                 for (int i = 0; i < current_size; ++i) {
@@ -115,6 +115,11 @@ void overloadQueue(const enum schedAlg* const overload_alg , int max_request_siz
                     }
                 }
             }
+
+
+            QueueElement element = createQueueElement(last_conf);
+            queueInsert(wait_queue, element);
+            return;
         }
         case dh_sched: {
             QueueElement temp_elem;
@@ -123,6 +128,7 @@ void overloadQueue(const enum schedAlg* const overload_alg , int max_request_siz
             destroyQueueElement(&temp_elem);
             QueueElement elem = createQueueElement(last_conf);
             queueInsert(wait_queue, elem);
+
             return;
         }
         case dt_sched: {
@@ -137,6 +143,7 @@ void overloadQueue(const enum schedAlg* const overload_alg , int max_request_siz
         }
     }
 }
+
 int main(int argc, char *argv[]) {
     // Initialization
     enum schedAlg overload_alg;
@@ -159,12 +166,16 @@ int main(int argc, char *argv[]) {
     for (int i = 0; i < threads; i++)
     {
         pthread_t threadID;
-        ThreadEntry entry;
-        entry.thread = threadID;
-        entry.stat_data = 0; //change this
-        entry.request = NULL;
-        workers[i] = entry;
-        if (pthread_create(&threadID, NULL, &doRoutine, NULL) != 0)
+
+        workers[i].thread = threadID;
+        workers[i].all_requests_handled = 0;
+        workers[i].dynamic_requests_handled = 0;
+        workers[i].static_requests_handled = 0;
+        workers[i].request_arrival = NULL;
+        workers[i].request_work_start = NULL;
+        workers[i].thread_index = i;
+        workers[i].thread_index = i;
+        if (pthread_create(&threadID, NULL, &doRoutine, (void*) (workers + i)) != 0)
         {
             fprintf(stderr, "Fucky Wucky");
             exit(1);
@@ -175,6 +186,8 @@ int main(int argc, char *argv[]) {
     listenfd = Open_listenfd(port);
     while (true) {
         clientlen = sizeof(clientaddr);
+        connfd = Accept(listenfd, (SA *) &clientaddr, (socklen_t *) &clientlen);
+        pthread_mutex_lock(&lock);
         if (max_request_size < requests_running + queueSize(wait_queue))
         {
             fprintf(stderr, "surpassed the max size somehow");
@@ -182,25 +195,25 @@ int main(int argc, char *argv[]) {
         }
         else if (max_request_size > requests_running + queueSize(wait_queue))//add queue size
         {
-            connfd = Accept(listenfd, (SA *) &clientaddr, (socklen_t *) &clientlen);
-            pthread_mutex_lock(&lock);
+
             QueueElement element = createQueueElement(connfd);
             queueInsert(wait_queue, element);
             //is sent to a sleeping worker
             pthread_cond_signal(&condition);
-            pthread_mutex_unlock(&lock);
+
         }
-        else //max_request_size == requests_running + queueSize(wait_queue)
+        if(max_request_size == requests_running + queueSize(wait_queue))
         {
-            pthread_mutex_lock(&lock);
             overloadQueue(&overload_alg, max_request_size -threads, connfd);
-            pthread_mutex_unlock(&lock);
         }
+        pthread_mutex_unlock(&lock);
     }
 
 }
 
 
+/* TODO:
+*/
 
     
 

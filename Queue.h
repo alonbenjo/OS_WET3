@@ -14,12 +14,10 @@ typedef struct QueueStruct * Queue;
 
 typedef struct {
     int connfd;
+    struct timeval* request_arrival;
 } * QueueElement;
 
 QueueElement createQueueElement(int connfd);
-
-void destroyQueueElement(QueueElement* element);
-
 typedef enum {
     QUEUE_SUCCESS,
     QUEUE_ALLOC_ERROR,
@@ -29,6 +27,9 @@ typedef enum {
 } QueueResult;
 
 Queue queueCreate(int max_size);
+
+
+void destroyQueueElement(QueueElement* element);
 void queueDestroy(Queue* queue_ptr);
 
 QueueResult queueInsert(Queue queue, QueueElement input);
