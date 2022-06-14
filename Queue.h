@@ -7,40 +7,31 @@
 
 #include <stdbool.h>
 #include <string.h>
+#include <malloc.h>
 
 typedef char* str;
-typedef struct Queue * Queue;
+typedef struct QueueStruct * Queue;
 
 typedef struct {
     int connfd;
 } * QueueElement;
 
-QueueElement createQueueElement(int connfd){
-    QueueElement* element = malloc(sizeof(QueueElement));
-    if(element == NULL)
-        return NULL;
-    element->connfd = connfd;
-    return element;
-}
+QueueElement createQueueElement(int connfd);
 
-void destroyQueueElement(QueueElement* element){
-    free(*element);
-    *element = NULL;
-}
+void destroyQueueElement(QueueElement* element);
 
 typedef enum {
     QUEUE_SUCCESS,
     QUEUE_ALLOC_ERROR,
     QUEUE_FULL,
     QUEUE_EMPTY,
-    QUEUE_BAD_ARG,
-    QUEUE_RESULT_SIZE
+    QUEUE_BAD_ARG
 } QueueResult;
 
 Queue queueCreate(int max_size);
 void queueDestroy(Queue* queue_ptr);
 
-QueueResult queueInsert(Queue queue, QueueElement* input);
+QueueResult queueInsert(Queue queue, QueueElement input);
 QueueResult queueRemove(Queue queue, QueueElement* output); // free on user ///
 int queueSize(Queue queue);
 bool queueIsEmpty(Queue queue);

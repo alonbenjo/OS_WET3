@@ -6,13 +6,27 @@
 #include <stdlib.h>
 
 
-struct Queue {
+struct QueueStruct {
     int max_size;
     QueueElement* buff_end;
     QueueElement* start_ptr;
     QueueElement* end_ptr;
     QueueElement* buff;
 };
+
+QueueElement createQueueElement(int connfd){
+    QueueElement element = (QueueElement) malloc(sizeof(*element));
+    if(element == NULL)
+        return NULL;
+    element->connfd = connfd;
+    return element;
+}
+
+void destroyQueueElement(QueueElement* element){
+    free(*element);
+    *element = NULL;
+}
+
 
 void inc_buff(Queue queue, QueueElement** index_ptr);
 
@@ -43,7 +57,7 @@ void queueDestroy(Queue* queue_ptr){
 }
 
 QueueResult queueInsert(Queue queue, QueueElement input){
-    if(queue == NULL)
+    if(queue == NULL || input == NULL)
         return QUEUE_BAD_ARG;
     if(queueIsFull(queue)){
         return QUEUE_FULL;
@@ -59,11 +73,14 @@ QueueResult queueRemove(Queue queue, QueueElement* output){
     if(queueIsEmpty(queue)) {
         return QUEUE_EMPTY;
     }
-    *output = *queue->start_ptr;
-    inc_buff(queue, &queue->start_ptr);
+    if (!queueIsEmpty(queue)){
+        *output = *queue->start_ptr;
+        inc_buff(queue, &queue->start_ptr);
+    } else{
+        *output = NULL;
+    }
     return QUEUE_SUCCESS;
 }
-
 
 int queueSize(const Queue queue){
     if(queue == NULL)
@@ -79,6 +96,7 @@ bool queueIsEmpty(const Queue queue){
         return false;
     return queueSize(queue) == 0;
 }
+
 bool queueIsFull(const Queue queue){
     if(queue == NULL)
         return false;
