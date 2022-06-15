@@ -56,8 +56,9 @@ void getargs(int *port,int* threads, int* queue_size,enum schedAlg* overload_alg
         exit(1);
     }
 }
- pthread_cond_t condition;
- pthread_mutex_t lock;
+
+pthread_cond_t condition;
+pthread_mutex_t lock;
 volatile int requests_running;
 volatile Queue wait_queue;
 
@@ -77,6 +78,7 @@ void* doRoutine(void* thread_entry_ptr)
 
         ((ThreadEntry *) thread_entry_ptr)->request_arrival = elem->request_arrival;
         gettimeofday(((ThreadEntry *) thread_entry_ptr)->request_work_start,NULL);
+        pthread_cond_signal(&condition);
         pthread_mutex_unlock(&lock);
 
         //work neto:
@@ -135,12 +137,8 @@ void overloadQueue(const enum schedAlg* const overload_alg , int max_request_siz
             Close(last_conf);
             return;
         }
-        case block_sched: {
-            pthread_cond_wait(&condition, &lock);
-            QueueElement element = createQueueElement(last_conf);
-            queueInsert(wait_queue, element);
-            pthread_cond_signal(&condition);
-        }
+        //block case is in the master thread code
+
     }
 }
 
@@ -151,7 +149,7 @@ int main(int argc, char *argv[]) {
     int listenfd, connfd, port, threads, max_request_size, clientlen;
     requests_running = 0;
     getargs(&port, &threads, &max_request_size, &overload_alg, argc, argv);
-    wait_queue = queueCreate(max_request_size - threads);
+    wait_queue = queueCreate(max_request_size);
     if (pthread_cond_init(&condition, NULL) != 0) {
         fprintf(stderr, "Fucky Wucky Cond");
         exit(1);
@@ -174,7 +172,7 @@ int main(int argc, char *argv[]) {
         workers[i].request_arrival = NULL;
         workers[i].request_work_start = NULL;
         workers[i].thread_index = i;
-        workers[i].thread_index = i;
+
         if (pthread_create(&threadID, NULL, &doRoutine, (void*) (workers + i)) != 0)
         {
             fprintf(stderr, "Fucky Wucky");
@@ -193,29 +191,24 @@ int main(int argc, char *argv[]) {
             fprintf(stderr, "surpassed the max size somehow");
             exit(1);
         }
-        else if (max_request_size > requests_running + queueSize(wait_queue))//add queue size
+        else if (max_request_size - requests_running > queueSize(wait_queue))
         {
-
             QueueElement element = createQueueElement(connfd);
             queueInsert(wait_queue, element);
+            //if adding gets you to max and blocking is the alg
+            //then you don't want to accept new requests
+            while(overload_alg == block_sched && max_request_size == queueSize(wait_queue) + requests_running )
+            {
+                pthread_cond_wait(&condition, &lock);
+            }
             //is sent to a sleeping worker
             pthread_cond_signal(&condition);
-
         }
-        if(max_request_size == requests_running + queueSize(wait_queue))
+
+        if(max_request_size + requests_running ==  queueSize(wait_queue))
         {
             overloadQueue(&overload_alg, max_request_size -threads, connfd);
         }
         pthread_mutex_unlock(&lock);
     }
-
 }
-
-
-/* TODO:
-*/
-
-    
-
-
- 
