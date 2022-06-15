@@ -137,6 +137,8 @@ void overloadQueue(const enum schedAlg* const overload_alg , int max_request_siz
             Close(last_conf);
             return;
         }
+        default:
+			return;
         //block case is in the master thread code
 
     }

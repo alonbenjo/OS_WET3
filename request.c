@@ -10,19 +10,19 @@ void printOurStats(char* buf, ThreadEntry * thread_entry_ptr)
 {
 
     const struct timeval * const arrival_const = thread_entry_ptr->request_arrival;
-    sprintf(buf, "%Stat-Req-Arrival:: %lu.%06lu\r\n",buf,arrival_const->tv_sec,arrival_const->tv_usec);
+    sprintf(buf, "%sStat-Req-Arrival:: %lu.%06lu\r\n",buf,arrival_const->tv_sec,arrival_const->tv_usec);
     const struct timeval * const work_begin_const = thread_entry_ptr->request_work_start;
     struct timeval dispatch, arrival, work_begin;
     memcpy(&arrival, &arrival_const, sizeof(struct timeval));
     memcpy(&work_begin, &work_begin_const, sizeof(struct timeval));
     timersub(&arrival, &work_begin, &dispatch);
 
-    sprintf(buf, "%Stat-Req-Dispatch:: %lu.%06lu\r\n", buf,dispatch.tv_sec ,dispatch.tv_usec);
+    sprintf(buf, "%sStat-Req-Dispatch:: %lu.%06lu\r\n", buf,dispatch.tv_sec ,dispatch.tv_usec);
     //prints relating to the thread
-    sprintf(buf, "%Stat-Thread-Id:: %d\r\n",           buf, thread_entry_ptr->thread_index);
-    sprintf(buf, "%Stat-Thread-Count:: %d\r\n",        buf, thread_entry_ptr->all_requests_handled);
-    sprintf(buf, "%Stat-Thread-Static:: %d\r\n",       buf, thread_entry_ptr->static_requests_handled);
-    sprintf(buf, "%Stat-Thread-Dynamic:: %d\r\n",      buf, thread_entry_ptr->dynamic_requests_handled);
+    sprintf(buf, "%sStat-Thread-Id:: %d\r\n",           buf, thread_entry_ptr->thread_index);
+    sprintf(buf, "%sStat-Thread-Count:: %d\r\n",        buf, thread_entry_ptr->all_requests_handled);
+    sprintf(buf, "%sStat-Thread-Static:: %d\r\n",       buf, thread_entry_ptr->static_requests_handled);
+    sprintf(buf, "%sStat-Thread-Dynamic:: %d\r\n",      buf, thread_entry_ptr->dynamic_requests_handled);
 }
 // requestError(      fd,    filename,        "404",    "Not found", "OS-HW3 Server could not find this file");
 void requestError(int fd, char *cause, char *errnum, char *shortmsg, char *longmsg, ThreadEntry* thread_entry_ptr) {
