@@ -70,13 +70,15 @@ void* doRoutine(void* thread_index_ptr)
     int thread_index = *((int *) thread_index_ptr);
     volatile ThreadEntry* thread_entry_ptr = workers+thread_index;
     assert(thread_index == thread_entry_ptr->thread_index);
-    PRINT_THREAD(*thread_entry_ptr);
     while(true)
     {
-        printf("yes papa im working\n");
+        PRINTF_STRING("yes papa im working\n");
         pthread_mutex_lock(&lock);
+        THREAD_LOCKED_SELF(pthread_self());
         while (queueIsEmpty(wait_queue))
         {
+            PRINTF_STRING("Im gonna lock this thread up!")
+            THREAD_LOCKED_SELF(pthread_self());
             pthread_cond_wait(&condition, &lock);
         }
         QueueElement elem;
@@ -90,7 +92,10 @@ void* doRoutine(void* thread_index_ptr)
         }
 
         ((ThreadEntry *) thread_entry_ptr)->request_arrival = *elem->request_arrival;
-        gettimeofday(&((ThreadEntry *) thread_entry_ptr)->request_work_start,NULL);
+        struct timeval runtime;
+        gettimeofday(&runtime,NULL);
+        ((ThreadEntry *) thread_entry_ptr)->request_work_start = runtime;
+
         pthread_cond_signal(&condition);
         pthread_mutex_unlock(&lock);
 
@@ -103,9 +108,12 @@ void* doRoutine(void* thread_index_ptr)
         destroyQueueElement(&elem);
 
         pthread_mutex_lock(&lock);
+        THREAD_LOCKED_INDEX(thread_index);
         requests_running--;
         //printf("all done number now is %d\n", requests_running);
-        pthread_cond_signal(&condition_master); //for master thread
+        //TODO return for blocking
+        pthread_cond_signal(&condition_master); //for master thread in block
+        pthread_cond_signal(&condition); //for all of my friends
         pthread_mutex_unlock(&lock);
     }
 }
@@ -194,7 +202,7 @@ int main(int argc, char *argv[]) {
         //workers[i].request_work_start;
         workers[i].thread_index = i;
 
-        if (pthread_create(&threadID, NULL, &doRoutine, (void*) (workers + i)) != 0)
+        if (pthread_create(&threadID, NULL, &doRoutine, (void*) &(workers[i].thread_index)) != 0)
         {
             fprintf(stderr, "Fucky Wucky");
             exit(1);
@@ -208,6 +216,7 @@ int main(int argc, char *argv[]) {
         clientlen = sizeof(clientaddr);
         connfd = Accept(listenfd, (SA *) &clientaddr, (socklen_t *) &clientlen);
         pthread_mutex_lock(&lock);
+        MASTER_LOCKED
         if (max_request_size < requests_running + queueSize(wait_queue))
         {
             fprintf(stderr, "surpassed the max size somehow");
