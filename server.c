@@ -4,6 +4,8 @@
 #include "Queue.h"
 #include <math.h>
 #include <stdbool.h>
+#include <assert.h>
+#include "macros2.h"
 
 
 
@@ -64,9 +66,11 @@ volatile Queue wait_queue;
 
 
 void* doRoutine(void* thread_index_ptr)
-{
+{    
     int thread_index = *((int *) thread_index_ptr);
-    int thread_index = *((int *) thread_index_ptr);
+    volatile ThreadEntry* thread_entry_ptr = workers+thread_index;
+    assert(thread_index == thread_entry_ptr->thread_index);
+    PRINT_THREAD(*thread_entry_ptr);
     while(true)
     {
         printf("yes papa im working\n");
