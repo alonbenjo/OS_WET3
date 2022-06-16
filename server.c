@@ -57,46 +57,58 @@ void getargs(int *port,int* threads, int* queue_size,enum schedAlg* overload_alg
     }
 }
 
-pthread_cond_t condition;
+pthread_cond_t condition, condition_master;
 pthread_mutex_t lock;
 volatile int requests_running;
 volatile Queue wait_queue;
 
 
-void* doRoutine(void* thread_entry_ptr)
+void* doRoutine(void* thread_index_ptr)
 {
+    int thread_index = *((int *) thread_index_ptr);
+    int thread_index = *((int *) thread_index_ptr);
     while(true)
     {
+        printf("yes papa im working\n");
         pthread_mutex_lock(&lock);
         while (queueIsEmpty(wait_queue))
         {
             pthread_cond_wait(&condition, &lock);
         }
         QueueElement elem;
-        queueRemove(wait_queue, &elem);
-        requests_running++;
+        if(queueRemove(wait_queue, &elem) == QUEUE_SUCCESS) {
+            requests_running++;
+            //printf("yes papa number now is %d\n", requests_running);
+        }
+        else{
+            fprintf(stderr,"oh no we couldn't remove from the queueue");
+            exit(5);
+        }
 
-        ((ThreadEntry *) thread_entry_ptr)->request_arrival = elem->request_arrival;
-        gettimeofday(((ThreadEntry *) thread_entry_ptr)->request_work_start,NULL);
+        ((ThreadEntry *) thread_entry_ptr)->request_arrival = *elem->request_arrival;
+        gettimeofday(&((ThreadEntry *) thread_entry_ptr)->request_work_start,NULL);
         pthread_cond_signal(&condition);
         pthread_mutex_unlock(&lock);
 
-        //work neto:
+        /* * work neto:*/
         requestHandle(elem->connfd, thread_entry_ptr);
-        ((ThreadEntry *) thread_entry_ptr)->request_arrival = NULL;
+        //for pointer timevals
+        //((ThreadEntry *) thread_entry_ptr)->request_arrival = NULL;
+        //((ThreadEntry *) thread_entry_ptr)->request_work_start = NULL;
         Close(elem->connfd);
         destroyQueueElement(&elem);
 
         pthread_mutex_lock(&lock);
         requests_running--;
-        pthread_cond_signal(&condition); //for master thread
+        //printf("all done number now is %d\n", requests_running);
+        pthread_cond_signal(&condition_master); //for master thread
         pthread_mutex_unlock(&lock);
     }
 }
 
-void overloadQueue(const enum schedAlg* const overload_alg , int max_request_size, int last_conf)
+void overloadQueue(enum schedAlg overload_alg, int last_conf)
 {
-    switch(*overload_alg) {
+    switch(overload_alg) {
         case random_sched: {
             int size = queueSize(wait_queue);
             int need_to_remove = ceil(.3 * size);
@@ -130,7 +142,6 @@ void overloadQueue(const enum schedAlg* const overload_alg , int max_request_siz
             destroyQueueElement(&temp_elem);
             QueueElement elem = createQueueElement(last_conf);
             queueInsert(wait_queue, elem);
-
             return;
         }
         case dt_sched: {
@@ -156,6 +167,10 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "Fucky Wucky Cond");
         exit(1);
     }
+    if (pthread_cond_init(&condition_master, NULL) != 0) {
+        fprintf(stderr, "Fucky Wucky Cond");
+        exit(1);
+    }
     if (pthread_mutex_init(&lock, NULL) != 0) {
         fprintf(stderr, "Fucky Wucky Mutex");
         exit(1);
@@ -171,8 +186,8 @@ int main(int argc, char *argv[]) {
         workers[i].all_requests_handled = 0;
         workers[i].dynamic_requests_handled = 0;
         workers[i].static_requests_handled = 0;
-        workers[i].request_arrival = NULL;
-        workers[i].request_work_start = NULL;
+        //workers[i].request_arrival;
+        //workers[i].request_work_start;
         workers[i].thread_index = i;
 
         if (pthread_create(&threadID, NULL, &doRoutine, (void*) (workers + i)) != 0)
@@ -185,6 +200,7 @@ int main(int argc, char *argv[]) {
     //main thread: listener
     listenfd = Open_listenfd(port);
     while (true) {
+        //printf("Obey your master! there are %d process running \n", requests_running);
         clientlen = sizeof(clientaddr);
         connfd = Accept(listenfd, (SA *) &clientaddr, (socklen_t *) &clientlen);
         pthread_mutex_lock(&lock);
@@ -193,24 +209,23 @@ int main(int argc, char *argv[]) {
             fprintf(stderr, "surpassed the max size somehow");
             exit(1);
         }
-        else if (max_request_size - requests_running > queueSize(wait_queue))
+        else if (max_request_size > requests_running + queueSize(wait_queue))
         {
             QueueElement element = createQueueElement(connfd);
             queueInsert(wait_queue, element);
             //if adding gets you to max and blocking is the alg
             //then you don't want to accept new requests
-            while(overload_alg == block_sched && max_request_size == queueSize(wait_queue) + requests_running )
+            while((overload_alg == block_sched) && (max_request_size == queueSize(wait_queue) + requests_running))
             {
-                pthread_cond_wait(&condition, &lock);
+                pthread_cond_wait(&condition_master, &lock);
             }
-            //is sent to a sleeping worker
-            pthread_cond_signal(&condition);
         }
-
-        if(max_request_size + requests_running ==  queueSize(wait_queue))
+        else if(max_request_size == requests_running + queueSize(wait_queue))
         {
-            overloadQueue(&overload_alg, max_request_size -threads, connfd);
+            overloadQueue(overload_alg, connfd);
         }
+        //is sent to a sleeping worker
+        pthread_cond_signal(&condition);
         pthread_mutex_unlock(&lock);
     }
 }

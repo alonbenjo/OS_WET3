@@ -20,7 +20,6 @@ typedef struct {
 QueueElement createQueueElement(int connfd);
 typedef enum {
     QUEUE_SUCCESS,
-    QUEUE_ALLOC_ERROR,
     QUEUE_FULL,
     QUEUE_EMPTY,
     QUEUE_BAD_ARG
@@ -39,6 +38,6 @@ bool queueIsEmpty(Queue queue);
 bool queueIsFull(Queue queue);
 
 
-
+void queuePrint(Queue queue);
 
 #endif //HW3_QUEUE_H

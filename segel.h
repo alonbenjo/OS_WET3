@@ -46,8 +46,8 @@ typedef struct  {
     int all_requests_handled;
     int dynamic_requests_handled;
     int static_requests_handled;
-    struct timeval* request_arrival;
-    struct timeval* request_work_start;
+    struct timeval request_arrival;
+    struct timeval request_work_start;
 } ThreadEntry;
 
 volatile ThreadEntry* workers;

@@ -9,13 +9,13 @@
 void printOurStats(char* buf, ThreadEntry * thread_entry_ptr)
 {
 
-    const struct timeval * const arrival_const = thread_entry_ptr->request_arrival;
-    sprintf(buf, "%sStat-Req-Arrival:: %lu.%06lu\r\n",buf,arrival_const->tv_sec,arrival_const->tv_usec);
-    const struct timeval * const work_begin_const = thread_entry_ptr->request_work_start;
-    struct timeval dispatch, arrival, work_begin;
-    memcpy(&arrival, &arrival_const, sizeof(struct timeval));
-    memcpy(&work_begin, &work_begin_const, sizeof(struct timeval));
-    timersub(&arrival, &work_begin, &dispatch);
+
+    sprintf(buf, "%sStat-Req-Arrival:: %lu.%06lu\r\n",buf,thread_entry_ptr->request_arrival.tv_sec,thread_entry_ptr->request_arrival.tv_usec);
+    struct timeval* arrival = &thread_entry_ptr->request_arrival;
+    struct timeval* runtime = &thread_entry_ptr->request_work_start;
+    struct timeval dispatch;
+
+    timersub(runtime, arrival, &dispatch);
 
     sprintf(buf, "%sStat-Req-Dispatch:: %lu.%06lu\r\n", buf,dispatch.tv_sec ,dispatch.tv_usec);
     //prints relating to the thread
@@ -155,11 +155,13 @@ void requestServeStatic(int fd, char *filename, int filesize, ThreadEntry* threa
     sprintf(buf, "HTTP/1.0 200 OK\r\n");
     sprintf(buf, "%sServer: OS-HW3 Web Server\r\n", buf);
     sprintf(buf, "%sContent-Length: %d\r\n", buf, filesize);
-    sprintf(buf, "%sContent-Type: %s\r\n\r\n", buf, filetype);
+    sprintf(buf, "%sContent-Type: %s\r\n", buf, filetype);
     printOurStats(buf,  thread_entry_ptr);
 
-
     Rio_writen(fd, buf, strlen(buf));
+    sprintf(buf, "\r\n");
+    Rio_writen(fd, buf, strlen(buf));
+
 
     //  Writes out to the client socket the memory-mapped file
     Rio_writen(fd, srcp, filesize);
@@ -199,15 +201,15 @@ void requestHandle(int fd, void *thread_entry_ptr) {
             requestError(fd, filename, "403", "Forbidden", "OS-HW3 Server could not read this file", thread_entry_ptr);
             return;
         }
-        requestServeStatic(fd, filename, (int) sbuf.st_size, thread_entry_ptr);
         ((ThreadEntry *) thread_entry_ptr)->static_requests_handled++;
+        requestServeStatic(fd, filename, (int) sbuf.st_size, thread_entry_ptr);
     } else {
         if (!(S_ISREG(sbuf.st_mode)) || !(S_IXUSR & sbuf.st_mode)) {
             requestError(fd, filename, "403", "Forbidden", "OS-HW3 Server could not run this CGI program", thread_entry_ptr);
             return;
         }
-        requestServeDynamic(fd, filename, cgiargs,thread_entry_ptr);
         ((ThreadEntry *) thread_entry_ptr)->dynamic_requests_handled++;
+        requestServeDynamic(fd, filename, cgiargs,thread_entry_ptr);
     }
 }
 

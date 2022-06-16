@@ -4,7 +4,8 @@
 
 #include "Queue.h"
 #include <stdlib.h>
-#include <sys/time.h>
+//#include <sys/time.h>
+#include <stdio.h>
 
 struct QueueStruct {
     int max_size;
@@ -12,7 +13,6 @@ struct QueueStruct {
     QueueElement* start_ptr;
     QueueElement* end_ptr;
     QueueElement* buff;
-    int last_conf;
 };
 
 QueueElement createQueueElement(int connfd){
@@ -47,7 +47,7 @@ Queue queueCreate(int max_size){
         return NULL;
     }
     queue->start_ptr = queue->end_ptr = queue->buff;
-    queue->buff_end = queue->buff + max_size + 1;
+    queue->buff_end = queue->buff + max_size;
     return queue;
 }
 
@@ -59,6 +59,9 @@ void queueDestroy(Queue* queue_ptr){
         destroyQueueElement(ptr);
     }
     free(queue->buff);
+    queue->buff = NULL;
+    free(queue);
+    *queue_ptr = NULL;
 }
 
 QueueResult queueInsert(Queue queue, QueueElement input){
@@ -73,17 +76,15 @@ QueueResult queueInsert(Queue queue, QueueElement input){
 }
 
 QueueResult queueRemove(Queue queue, QueueElement* output){
-    if(queue == NULL)
+    if(queue == NULL || output == NULL)
         return QUEUE_BAD_ARG;
     if(queueIsEmpty(queue)) {
+        *output = NULL;
         return QUEUE_EMPTY;
     }
-    if (!queueIsEmpty(queue)){
-        *output = *queue->start_ptr;
-        inc_buff(queue, &queue->start_ptr);
-    } else{
-        *output = NULL;
-    }
+    *output = *queue->start_ptr;
+    *queue->start_ptr = NULL;
+    inc_buff(queue, &queue->start_ptr);
     return QUEUE_SUCCESS;
 }
 
@@ -111,6 +112,31 @@ bool queueIsFull(const Queue queue){
 /** * private: */
 void inc_buff(Queue queue, QueueElement** index_ptr){
     (*index_ptr)++;
-    if(*index_ptr > queue->buff_end)
+    if((*index_ptr) > queue->buff_end)
         *index_ptr = queue->buff;
 }
+
+void queuePrint(Queue queue){
+    if(false) {
+        printf("QQQQQQQQQQQQQQ\tQueue Print:\tQQQQQQQQQQQQQQ\n");
+        printf("max size:\t%d\n", queue->max_size);
+        printf("buff end:\tbuff + %ld\n", queue->buff_end - queue->buff);
+        printf("start ptr:\tbuff + %ld\n", queue->start_ptr - queue->buff);
+        printf("end ptr:\tbuff + %ld\n", queue->end_ptr - queue->buff);
+    }
+    printf("[");
+    QueueElement* ptr;
+    bool empty_cell;
+    for (ptr = queue->buff; ptr <= queue->buff_end; ++ptr) {
+        empty_cell = true;
+        if(ptr == queue->start_ptr){ printf("s"); empty_cell = false; }
+        if(ptr == queue->end_ptr){ printf("e"); empty_cell = false; }
+        if(*ptr == NULL){ printf("N"); empty_cell = false; }
+        if (empty_cell) printf(" ");
+        printf(ptr == queue->buff_end ? "" :",");
+    }
+    printf("]\n");
+
+}
+
+
