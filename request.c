@@ -39,15 +39,17 @@ void requestError(int fd, char *cause, char *errnum, char *shortmsg, char *longm
     sprintf(buf, "HTTP/1.0 %s %s\r\n", errnum, shortmsg);
     Rio_writen(fd, buf, strlen(buf));
     printf("%s", buf);
-
     sprintf(buf, "Content-Type: text/html\r\n");
-    Rio_writen(fd, buf, strlen(buf));
-    printf("%s", buf);
+    sprintf(buf, "Content-Type: text/html\r\n");
+    sprintf(buf, "Content-Length: %lu\r\n", strlen(body));
+    printOurStats(buf,  thread_entry_ptr);
 
-    sprintf(buf, "Content-Length: %lu\r\n\r\n", strlen(body));
     Rio_writen(fd, buf, strlen(buf));
     printf("%s", buf);
-    printOurStats(buf, thread_entry_ptr);
+    Rio_writen(fd, buf, strlen(buf));
+    sprintf(buf, "\r\n");
+    Rio_writen(fd, buf, strlen(buf));
+    printf("%s", buf);
 
     // Write out the content
     Rio_writen(fd, body, strlen(body));

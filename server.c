@@ -88,7 +88,7 @@ void* doRoutine(void* thread_index_ptr)
         }
         else{
             fprintf(stderr,"oh no we couldn't remove from the queueue");
-            exit(5);
+            exit(42);
         }
 
         ((ThreadEntry *) thread_entry_ptr)->request_arrival = *elem->request_arrival;
@@ -96,11 +96,11 @@ void* doRoutine(void* thread_index_ptr)
         gettimeofday(&runtime,NULL);
         ((ThreadEntry *) thread_entry_ptr)->request_work_start = runtime;
 
-        pthread_cond_signal(&condition);
+        //pthread_cond_signal(&condition);
         pthread_mutex_unlock(&lock);
 
         /* * work neto:*/
-        requestHandle(elem->connfd, thread_entry_ptr);
+        requestHandle(elem->connfd, (void *) thread_entry_ptr);
         //for pointer timevals
         //((ThreadEntry *) thread_entry_ptr)->request_arrival = NULL;
         //((ThreadEntry *) thread_entry_ptr)->request_work_start = NULL;
@@ -112,17 +112,19 @@ void* doRoutine(void* thread_index_ptr)
         requests_running--;
         //printf("all done number now is %d\n", requests_running);
         //TODO return for blocking
-        pthread_cond_signal(&condition_master); //for master thread in block
         pthread_cond_signal(&condition); //for all of my friends
+        pthread_cond_signal(&condition_master); //for master thread in block
         pthread_mutex_unlock(&lock);
     }
 }
 
 void overloadQueue(enum schedAlg overload_alg, int last_conf)
 {
+    PRINTF_STRING("overload entered");
     switch(overload_alg) {
         case random_sched: {
             int size = queueSize(wait_queue);
+            QueueElement element = createQueueElement(last_conf);
             int need_to_remove = ceil(.3 * size);
             while (need_to_remove > 0){
                 int current_size = queueSize(wait_queue);
@@ -141,9 +143,6 @@ void overloadQueue(enum schedAlg overload_alg, int last_conf)
                     }
                 }
             }
-
-
-            QueueElement element = createQueueElement(last_conf);
             queueInsert(wait_queue, element);
             return;
         }
@@ -213,10 +212,11 @@ int main(int argc, char *argv[]) {
     listenfd = Open_listenfd(port);
     while (true) {
         //printf("Obey your master! there are %d process running \n", requests_running);
+
         clientlen = sizeof(clientaddr);
-        connfd = Accept(listenfd, (SA *) &clientaddr, (socklen_t *) &clientlen);
+        Accept(listenfd, (SA *) &clientaddr, (socklen_t *) &clientlen);
         pthread_mutex_lock(&lock);
-        MASTER_LOCKED
+        MASTER_LOCKED;
         if (max_request_size < requests_running + queueSize(wait_queue))
         {
             fprintf(stderr, "surpassed the max size somehow");
@@ -230,6 +230,7 @@ int main(int argc, char *argv[]) {
             //then you don't want to accept new requests
             while((overload_alg == block_sched) && (max_request_size == queueSize(wait_queue) + requests_running))
             {
+                pthread_cond_signal(&condition);
                 pthread_cond_wait(&condition_master, &lock);
             }
         }

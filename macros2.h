@@ -95,7 +95,7 @@
 #define PRINTF_STRING(string) \
   printf("PRINTF:\t %s", (string));
 #else
-#define PRINTF_STRING(number)
+#define PRINTF_STRING(string)
 #endif
 
 
