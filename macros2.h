@@ -12,6 +12,7 @@
 
 #define FUNC_FLAG 0
 #define PRINTF_STRING_FLAG 0
+#define PRINTF_INT_FLAG 0
 #define SHOW_SMASH_FLAG 0
 #define PRINT_PARAM_FLAG 0
 #define PRINT_IMPORTANT_FLAG 0
@@ -33,27 +34,21 @@
 //TREAD_LOCKED
 #if THREAD_LOCKED_FLAG
 #define THREAD_LOCKED_INDEX(thread_index) 												\
-	do{ 																		        \
-		printf("============== TREAD_LOCKED:  %d ==============\n", (thread_index)); 	\
-	} while(0);
+		printf("============== TREAD_LOCKED:  %d ==============\n", (thread_index));
 #else
 #define THREAD_LOCKED_INDEX(thread_index)
 #endif
 
 #if THREAD_LOCKED_FLAG
 #define THREAD_LOCKED_SELF(thread_self) 												\
-	do{ 																		        \
-		printf("============== TREAD_LOCKED:  %ud ==============\n", ((uint)thread_self)); 	\
-	} while(0);
+		printf("============== TREAD_LOCKED:  %ud ==============\n", ((uint)thread_self));
 #else
 #define THREAD_LOCKED_SELF(thread_index)
 #endif
 
 #if THREAD_LOCKED_FLAG
 #define MASTER_LOCKED												            \
-	do{ 																		\
-		printf("============== TREAD_LOCKED:  MASTER ==============\n"); 		\
-	} while(0);
+		printf("============== TREAD_LOCKED:  MASTER ==============\n");
 #else
 #define MASTER_LOCKED
 #endif
@@ -93,9 +88,16 @@
 
 #if PRINTF_STRING_FLAG
 #define PRINTF_STRING(string) \
-  printf("PRINTF:\t %s", (string));
+  printf("PRINTF:\t %s\n", (string));
 #else
 #define PRINTF_STRING(number)
+#endif
+
+#if PRINTF_INT_FLAG
+#define PRINTF_INT(number) \
+  printf("PRINTF:\t %d\n", (number));
+#else
+#define PRINTF_INT(number)
 #endif
 
 

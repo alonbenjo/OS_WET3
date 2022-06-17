@@ -3,6 +3,7 @@
 //
 
 #include "Queue.h"
+#include "segel.h"
 #include <stdlib.h>
 //#include <sys/time.h>
 #include <stdio.h>
@@ -19,9 +20,13 @@ QueueElement createQueueElement(int connfd){
     QueueElement element = (QueueElement) malloc(sizeof(*element));
     if(element == NULL)
         return NULL;
-    element->connfd = connfd;
     element->request_arrival = malloc(sizeof(*element->request_arrival));
+    if(element->request_arrival == NULL) {
+        free(element);
+        return NULL;
+    }
     gettimeofday(element->request_arrival, NULL);
+    element->connfd = connfd;
     return element;
 }
 
@@ -34,6 +39,8 @@ void destroyQueueElement(QueueElement* element){
 
 
 void inc_buff(Queue queue, QueueElement** index_ptr);
+
+int *generateRandomArr(double d);
 
 Queue queueCreate(int max_size){
     Queue queue = (Queue) malloc(sizeof (*queue));
@@ -109,12 +116,26 @@ bool queueIsFull(const Queue queue){
     return queueSize(queue) == queue->max_size;
 }
 
+const QueueElement queueNext(Queue queue){
+    if(queueIsEmpty(queue))
+        return NULL;
+    return *queue->start_ptr;
+}
 /** * private: */
 void inc_buff(Queue queue, QueueElement** index_ptr){
     (*index_ptr)++;
     if((*index_ptr) > queue->buff_end)
         *index_ptr = queue->buff;
 }
+
+QueueResult queueRemoveRandom(Queue queue, int fd){
+    int need_to_stay_len = 0.7*size
+}
+
+int *generateRandomArr(int d) {
+
+}
+
 
 void queuePrint(Queue queue){
     if(false) {

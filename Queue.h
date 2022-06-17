@@ -36,7 +36,8 @@ QueueResult queueRemove(Queue queue, QueueElement* output); // free on user ///
 int queueSize(Queue queue);
 bool queueIsEmpty(Queue queue);
 bool queueIsFull(Queue queue);
-
+const QueueElement queueNext(Queue queue);
+QueueResult queueRemoveRandom(Queue queue);
 
 void queuePrint(Queue queue);
 

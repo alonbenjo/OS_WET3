@@ -72,15 +72,15 @@ void* doRoutine(void* thread_index_ptr)
     assert(thread_index == thread_entry_ptr->thread_index);
     while(true)
     {
-        PRINTF_STRING("yes papa im working\n");
         pthread_mutex_lock(&lock);
-        THREAD_LOCKED_SELF(pthread_self());
+        THREAD_LOCKED_INDEX(thread_index);
         while (queueIsEmpty(wait_queue))
         {
-            PRINTF_STRING("Im gonna lock this thread up!")
-            THREAD_LOCKED_SELF(pthread_self());
+            PRINTF_STRING("Im gonna condition this thread up!")
+
             pthread_cond_wait(&condition, &lock);
         }
+        PRINTF_STRING("yes papa im working\n");
         QueueElement elem;
         if(queueRemove(wait_queue, &elem) == QUEUE_SUCCESS) {
             requests_running++;
@@ -96,7 +96,6 @@ void* doRoutine(void* thread_index_ptr)
         gettimeofday(&runtime,NULL);
         ((ThreadEntry *) thread_entry_ptr)->request_work_start = runtime;
 
-        pthread_cond_signal(&condition);
         pthread_mutex_unlock(&lock);
 
         /* * work neto:*/
@@ -110,54 +109,77 @@ void* doRoutine(void* thread_index_ptr)
         pthread_mutex_lock(&lock);
         THREAD_LOCKED_INDEX(thread_index);
         requests_running--;
-        //printf("all done number now is %d\n", requests_running);
-        //TODO return for blocking
         pthread_cond_signal(&condition_master); //for master thread in block
         pthread_cond_signal(&condition); //for all of my friends
         pthread_mutex_unlock(&lock);
     }
 }
 
-void overloadQueue(enum schedAlg overload_alg, int last_conf)
+void overloadQueue(enum schedAlg overload_alg, int last_conf, int max_request)
 {
+    QueueElement elem = createQueueElement(last_conf);
     switch(overload_alg) {
+
         case random_sched: {
-            int size = queueSize(wait_queue);
-            int need_to_remove = ceil(.3 * size);
-            while (need_to_remove > 0){
+            const int size = queueSize(wait_queue); //if size = 0
+            if(size == 0){
+                Close(last_conf);
+            }
+            int need_to_remove = (int) (0.3*size);
+            QueueElement dummy = createQueueElement(-1);
+            queueInsert(wait_queue, dummy);
+            QueueElement tmp;
+            while (need_to_remove > 0) {
                 int current_size = queueSize(wait_queue);
-                for (int i = 0; i < current_size; ++i) {
-                    if(need_to_remove == 0) continue;
-                    bool remove_this_element = rand() %2;
-                    QueueElement current_element;
-                    queueRemove(wait_queue, &current_element);
-                    if(remove_this_element){
-                        need_to_remove--;
-                        Close(current_element->connfd);
-                        destroyQueueElement(&current_element);
-                    }
-                    else{
-                        queueInsert(wait_queue, current_element);
-                    }
+
+                queueRemove(wait_queue, &tmp);
+                if (queueNext(wait_queue)->connfd != dummy->connfd && rand() % size != 0) {
+                    destroyQueueElement(&tmp);
+                    need_to_remove--;
+                } else {
+                    queueInsert(wait_queue, tmp);
                 }
             }
+            while(queueNext(wait_queue)->connfd != dummy->connfd)
+            {
+                queueRemove(wait_queue,&tmp);
+                queueInsert(wait_queue,tmp);
+            }
+            queueRemove(wait_queue, &tmp);
+            destroyQueueElement(&tmp);
 
-
-            QueueElement element = createQueueElement(last_conf);
-            queueInsert(wait_queue, element);
+            queueInsert(wait_queue,elem);
             return;
         }
+
         case dh_sched: {
-            QueueElement temp_elem;
-            queueRemove(wait_queue, &temp_elem);
-            Close(temp_elem->connfd);
-            destroyQueueElement(&temp_elem);
-            QueueElement elem = createQueueElement(last_conf);
-            queueInsert(wait_queue, elem);
-            return;
+            switch (queueSize(wait_queue)) {
+                case 0:
+                    Close(last_conf);
+                    return;
+                default:{
+                    QueueElement temp_elem;
+                    queueRemove(wait_queue, &temp_elem);
+                    Close(temp_elem->connfd);
+                    destroyQueueElement(&temp_elem);
+                    queueInsert(wait_queue, elem);
+                    return;
+                }
+            }
         }
+
         case dt_sched: {
             Close(last_conf);
+            return;
+        }
+
+        case block_sched:{
+            pthread_mutex_unlock(&lock);
+            while (max_request == queueSize(wait_queue) + requests_running)
+            {
+                pthread_cond_wait(&condition_master, &lock);
+            }
+            queueInsert(wait_queue, elem);
             return;
         }
         default:
@@ -216,7 +238,13 @@ int main(int argc, char *argv[]) {
         clientlen = sizeof(clientaddr);
         connfd = Accept(listenfd, (SA *) &clientaddr, (socklen_t *) &clientlen);
         pthread_mutex_lock(&lock);
-        MASTER_LOCKED
+        MASTER_LOCKED;
+        PRINTF_STRING("max_request_size:");
+        PRINTF_INT(max_request_size);
+        PRINTF_STRING("requests_running:");
+        PRINTF_INT(requests_running);
+        PRINTF_STRING("queueSize(wait_queue):");
+        PRINTF_INT(queueSize(wait_queue));
         if (max_request_size < requests_running + queueSize(wait_queue))
         {
             fprintf(stderr, "surpassed the max size somehow");
@@ -226,16 +254,10 @@ int main(int argc, char *argv[]) {
         {
             QueueElement element = createQueueElement(connfd);
             queueInsert(wait_queue, element);
-            //if adding gets you to max and blocking is the alg
-            //then you don't want to accept new requests
-            while((overload_alg == block_sched) && (max_request_size == queueSize(wait_queue) + requests_running))
-            {
-                pthread_cond_wait(&condition_master, &lock);
-            }
         }
         else if(max_request_size == requests_running + queueSize(wait_queue))
         {
-            overloadQueue(overload_alg, connfd);
+            overloadQueue(overload_alg, connfd,max_request_size);
         }
         //is sent to a sleeping worker
         pthread_cond_signal(&condition);

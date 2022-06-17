@@ -6,7 +6,26 @@
 #include "request.h"
 #include <sys/time.h>
 
-void printOurStats(char* buf, ThreadEntry * thread_entry_ptr)
+void printOurStatsStaticError(char* buf, ThreadEntry * thread_entry_ptr)
+{
+
+
+    sprintf(buf, "%sStat-Req-Arrival:: %lu.%06lu\r\n",buf,thread_entry_ptr->request_arrival.tv_sec,thread_entry_ptr->request_arrival.tv_usec);
+    struct timeval* arrival = &thread_entry_ptr->request_arrival;
+    struct timeval* runtime = &thread_entry_ptr->request_work_start;
+    struct timeval dispatch;
+
+    timersub(runtime, arrival, &dispatch);
+
+    sprintf(buf, "%sStat-Req-Dispatch:: %lu.%06lu\r\n", buf,dispatch.tv_sec ,dispatch.tv_usec);
+    //prints relating to the thread
+    sprintf(buf, "%sStat-Thread-Id:: %d\r\n",           buf, thread_entry_ptr->thread_index);
+    sprintf(buf, "%sStat-Thread-Count:: %d\r\n",        buf, thread_entry_ptr->all_requests_handled);
+    sprintf(buf, "%sStat-Thread-Static:: %d\r\n",       buf, thread_entry_ptr->static_requests_handled);
+    sprintf(buf, "%sStat-Thread-Dynamic:: %d\r\n\r\n",      buf, thread_entry_ptr->dynamic_requests_handled);
+}
+
+void printOurStatsDynamic(char* buf, ThreadEntry * thread_entry_ptr)
 {
 
 
@@ -24,6 +43,8 @@ void printOurStats(char* buf, ThreadEntry * thread_entry_ptr)
     sprintf(buf, "%sStat-Thread-Static:: %d\r\n",       buf, thread_entry_ptr->static_requests_handled);
     sprintf(buf, "%sStat-Thread-Dynamic:: %d\r\n",      buf, thread_entry_ptr->dynamic_requests_handled);
 }
+
+
 // requestError(      fd,    filename,        "404",    "Not found", "OS-HW3 Server could not find this file");
 void requestError(int fd, char *cause, char *errnum, char *shortmsg, char *longmsg, ThreadEntry* thread_entry_ptr) {
     char buf[MAXLINE], body[MAXBUF];
@@ -40,14 +61,15 @@ void requestError(int fd, char *cause, char *errnum, char *shortmsg, char *longm
     Rio_writen(fd, buf, strlen(buf));
     printf("%s", buf);
 
+
     sprintf(buf, "Content-Type: text/html\r\n");
     Rio_writen(fd, buf, strlen(buf));
     printf("%s", buf);
 
-    sprintf(buf, "Content-Length: %lu\r\n\r\n", strlen(body));
+    sprintf(buf, "Content-Length: %lu\r\n", strlen(body));
+    printOurStatsStaticError(buf, thread_entry_ptr);
     Rio_writen(fd, buf, strlen(buf));
     printf("%s", buf);
-    printOurStats(buf, thread_entry_ptr);
 
     // Write out the content
     Rio_writen(fd, body, strlen(body));
@@ -124,7 +146,7 @@ void requestServeDynamic(int fd, char *filename, char *cgiargs, ThreadEntry* thr
     // The CGI script has to finish writing out the header.
     sprintf(buf, "HTTP/1.0 200 OK\r\n");
     sprintf(buf, "%sServer: OS-HW3 Web Server\r\n", buf);
-    printOurStats(buf, thread_entry_ptr);
+    printOurStatsDynamic(buf, thread_entry_ptr);
     Rio_writen(fd, buf, strlen(buf));
     pid_t pid = Fork();
     if (pid == 0) {
@@ -156,11 +178,10 @@ void requestServeStatic(int fd, char *filename, int filesize, ThreadEntry* threa
     sprintf(buf, "%sServer: OS-HW3 Web Server\r\n", buf);
     sprintf(buf, "%sContent-Length: %d\r\n", buf, filesize);
     sprintf(buf, "%sContent-Type: %s\r\n", buf, filetype);
-    printOurStats(buf,  thread_entry_ptr);
+    printOurStatsStaticError(buf,  thread_entry_ptr);
 
     Rio_writen(fd, buf, strlen(buf));
-    sprintf(buf, "\r\n");
-    Rio_writen(fd, buf, strlen(buf));
+
 
 
     //  Writes out to the client socket the memory-mapped file
