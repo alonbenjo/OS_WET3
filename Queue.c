@@ -131,11 +131,13 @@ void inc_buff(Queue queue, QueueElement** index_ptr){
 }
 
 QueueResult queueRemoveRandom(Queue queue){
+    queuePrint(queue);
     if(queueIsEmpty(queue)) return QUEUE_EMPTY;
     int need_to_stay_len = (int) (0.7*queueSize(queue));
     int* rand_arr = generateRandomArr(need_to_stay_len);
-    int j = 0;
-    for (int i = 0; i< queueSize(queue); i++){
+    queuePrint(queue);
+    int j = 0, i, size = queueSize(queue);
+    for (i = 0; i< size; i++){
         PRINTF_STRING("========================== RANDOM ==========================");
         print_arr(rand_arr, need_to_stay_len);
         queuePrint(queue);
@@ -148,13 +150,15 @@ QueueResult queueRemoveRandom(Queue queue){
             j++;
         }
         else{
+            int tmp_num = tmp->connfd;
+            Close(tmp_num);
             destroyQueueElement(&tmp);
         }
     }
     PRINTF_STRING("========================== RANDOM ==========================");
     print_arr(rand_arr, need_to_stay_len);
     queuePrint(queue);
-    PRINTF_INT(queueSize(queue)-1);
+    PRINTF_INT(i);
     PRINTF_INT(j);
 }
 
@@ -167,9 +171,10 @@ int* generateRandomArr(int len) {
     if(len <=0) return NULL;
     int* arr = calloc(len, sizeof(int));
     //if null
+    int i;
     for(int i=0; i<len; i++){
         do {
-            arr[i] = rand() % len;
+            arr[i] = (7*rand()) % len;
         } while (!is_member(arr[i], arr, i));
     }
     qsort(arr, len, sizeof (int), cmpfunc);
