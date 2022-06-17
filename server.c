@@ -120,35 +120,13 @@ void overloadQueue(enum schedAlg overload_alg, int last_conf, int max_request)
     QueueElement elem = createQueueElement(last_conf);
     switch(overload_alg) {
 
-        case random_sched: {
-            const int size = queueSize(wait_queue); //if size = 0
-            if(size == 0){
-                Close(last_conf);
+        case random_sched:{
+            if(queueIsEmpty(wait_queue)){
+                close(last_conf);
+                return;
             }
-            int need_to_remove = (int) (0.3*size);
-            QueueElement dummy = createQueueElement(-1);
-            queueInsert(wait_queue, dummy);
-            QueueElement tmp;
-            while (need_to_remove > 0) {
-                int current_size = queueSize(wait_queue);
-
-                queueRemove(wait_queue, &tmp);
-                if (queueNext(wait_queue)->connfd != dummy->connfd && rand() % size != 0) {
-                    destroyQueueElement(&tmp);
-                    need_to_remove--;
-                } else {
-                    queueInsert(wait_queue, tmp);
-                }
-            }
-            while(queueNext(wait_queue)->connfd != dummy->connfd)
-            {
-                queueRemove(wait_queue,&tmp);
-                queueInsert(wait_queue,tmp);
-            }
-            queueRemove(wait_queue, &tmp);
-            destroyQueueElement(&tmp);
-
-            queueInsert(wait_queue,elem);
+            queueRemoveRandom(wait_queue);
+            queueInsert(wait_queue, createQueueElement(last_conf));
             return;
         }
 

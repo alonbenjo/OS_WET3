@@ -7,12 +7,12 @@
 
 //* flags:
 #define PRINT_THREAD_FLAG 0
-#define THREAD_LOCKED_FLAG 0
+#define THREAD_LOCKED_FLAG 1
 
 
 #define FUNC_FLAG 0
-#define PRINTF_STRING_FLAG 0
-#define PRINTF_INT_FLAG 0
+#define PRINTF_STRING_FLAG 1
+#define PRINTF_INT_FLAG 1
 #define SHOW_SMASH_FLAG 0
 #define PRINT_PARAM_FLAG 0
 #define PRINT_IMPORTANT_FLAG 0
@@ -95,7 +95,7 @@
 
 #if PRINTF_INT_FLAG
 #define PRINTF_INT(number) \
-  printf("PRINTF:\t %d\n", (number));
+  printf("PRINTF:\t%s:\t%d\n", (#number), (number));
 #else
 #define PRINTF_INT(number)
 #endif

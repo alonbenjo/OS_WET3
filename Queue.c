@@ -7,6 +7,7 @@
 #include <stdlib.h>
 //#include <sys/time.h>
 #include <stdio.h>
+#include "macros2.h"
 
 struct QueueStruct {
     int max_size;
@@ -39,8 +40,9 @@ void destroyQueueElement(QueueElement* element){
 
 
 void inc_buff(Queue queue, QueueElement** index_ptr);
-
-int *generateRandomArr(double d);
+int* generateRandomArr(int len);
+bool is_member(int x, int* arr, int len);
+void print_arr(int* arr, int len);
 
 Queue queueCreate(int max_size){
     Queue queue = (Queue) malloc(sizeof (*queue));
@@ -128,14 +130,59 @@ void inc_buff(Queue queue, QueueElement** index_ptr){
         *index_ptr = queue->buff;
 }
 
-QueueResult queueRemoveRandom(Queue queue, int fd){
-    int need_to_stay_len = 0.7*size
+QueueResult queueRemoveRandom(Queue queue){
+    if(queueIsEmpty(queue)) return QUEUE_EMPTY;
+    int need_to_stay_len = (int) (0.7*queueSize(queue));
+    int* rand_arr = generateRandomArr(need_to_stay_len);
+    int j = 0;
+    for (int i = 0; i< queueSize(queue); i++){
+        PRINTF_STRING("========================== RANDOM ==========================");
+        print_arr(rand_arr, need_to_stay_len);
+        queuePrint(queue);
+        PRINTF_INT(i);
+        PRINTF_INT(j);
+        QueueElement tmp;
+        queueRemove(queue, &tmp);
+        if(i==rand_arr[j]){
+            queueInsert(queue, tmp);
+            j++;
+        }
+        else{
+            destroyQueueElement(&tmp);
+        }
+    }
+    PRINTF_STRING("========================== RANDOM ==========================");
+    print_arr(rand_arr, need_to_stay_len);
+    queuePrint(queue);
+    PRINTF_INT(queueSize(queue)-1);
+    PRINTF_INT(j);
 }
 
-int *generateRandomArr(int d) {
-
+int cmpfunc (const void * a, const void * b) {
+    return ( *(int*)a - *(int*)b );
 }
 
+
+int* generateRandomArr(int len) {
+    if(len <=0) return NULL;
+    int* arr = calloc(len, sizeof(int));
+    //if null
+    for(int i=0; i<len; i++){
+        do {
+            arr[i] = rand() % len;
+        } while (!is_member(arr[i], arr, i));
+    }
+    qsort(arr, len, sizeof (int), cmpfunc);
+    //print_arr(arr, len);
+    return arr;
+}
+
+bool is_member(int x, int* arr, int len){
+    for (int i = 0 ; i<len ; i++){
+        if(arr[i] == x) return false;
+    }
+    return true;
+}
 
 void queuePrint(Queue queue){
     if(false) {
@@ -158,6 +205,15 @@ void queuePrint(Queue queue){
     }
     printf("]\n");
 
+}
+
+void print_arr(int* arr, int len){
+    printf("print arr:\t[");
+    for(int i = 0; i<len; i++){
+        printf("%d", arr[i]);
+        printf(i == len-1 ? "" :",");
+    }
+    printf("]\n");
 }
 
 
